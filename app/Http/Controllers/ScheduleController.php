@@ -1,564 +1,472 @@
 <?php
 
-/*
---------------------------------------------------------------------------
-    Copyright (C) 2015  Maxim Drachinskiy
-                        Silvi Kaltwasser
-                        Nadine Sobisch
-                        Robert Utnehmer
+namespace Lara\Http\Controllers;
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+use Request;
+use Session;
+use Input;
+use Hash;
+use Illuminate\Database\Eloquent\Collection;
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details (app/LICENSE.txt).
+use Lara\Jobtype;
+use Lara\Schedule;
+use Lara\ScheduleEntry;
+use Lara\ClubEvent;
 
-    Any questions? Mailto: maxim.drachinskiy@bc-studentenclub.de
---------------------------------------------------------------------------
-*/
+use Carbon\Carbon;
+use \Datetime;
 
-use Illuminate\Database\Eloquent\Collection as Collection;
+use Lara\Http\Requests;
+use Lara\Http\Controllers\Controller;
 
-class ScheduleController extends Controller {
+class ScheduleController extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function index()
+    {
+        //
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function create()
+    {
+        //
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function store(Request $request)
+    {
+        //
+    }
+
+    /**
+     * Display the specified resource.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function show($id)
+    {
+        //
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function edit($id)
+    {
+        //
+    }
+
+   /**
+    * Update the specified resource in storage.
+    * Edit or create a schedule with its entered information.
+    * If $scheduleId is null create a new schedule, otherwise the schedule specified by $scheduleId will be edited.
+    *
+    * Should be static to be accessed from ClubEventController
+    *
+    * @param int $scheduleId
+    * @return Schedule newSchedule
+     */
+    public function update($scheduleId)
+    {
+        $schedule = new Schedule;
+
+        if (!is_null($scheduleId))
+        {
+            $schedule = Schedule::findOrFail($scheduleId);
+        }
+
+        // format: time; validate on filled value
+        if(!empty(Input::get('preparationTime'))) 
+        {
+            $schedule->schdl_time_preparation_start = Input::get('preparationTime');
+        }
+        else
+        { 
+            $schedule->schdl_time_preparation_start = mktime(0, 0, 0);
+        }
+
+        // format: password; validate on filled value
+        if (Input::get('password') == "delete" 
+        AND Input::get('passwordDouble') == "delete") 
+        {
+            $schedule->schdl_password = '';
+        } 
+        elseif (!empty(Input::get('password'))
+            AND !empty(Input::get('passwordDouble'))
+            AND Input::get('password') == Input::get('passwordDouble')) 
+        {
+            $schedule->schdl_password = Hash::make(Input::get('password'));
+        }
+
+        // format: tinyInt; validate on filled value
+        if (Input::get('saveAsTemplate') == true)
+        {
+            $schedule->schdl_is_template = true;
+            $schedule->schdl_title = Input::get('templateName');
+        }
+        else 
+        {
+            $schedule->schdl_is_template = false;
+        }
+
+        return $schedule;
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     *
+     * @param  int  $id
+     * @return void
+     */
+    public function destroy($id)
+    {
+        // Get all the data
+        $schedule = Schedule::find($id);
+
+        // Check if the schedule exists
+        if ( is_null($schedule) ) {
+            Session::put('message', 'Fehler: Löschvorgang abgebrochen - der Dienstplaneintrag existiert nicht.');
+            Session::put('msgType', 'danger');
+            return Redirect::back();
+        }
+        // Delete all corresponding entries first because of dependencies in database
+        foreach ( $schedule->getEntries()->get() as $entry ) {
+            $result = (new ScheduleEntryController)->destroy($entry->id);
+        }
+
+        // Delete the schedule
+        Schedule::destroy($id);
+    }
 
 
     /**
-	* Generates the view for a list of schedules with a relation to an event.
-	*
-	* @return view scheduleViewList
-	* @return Schedule[] $schedules
-	*/
-	public function showScheduleList()
-	{
-		if(Session::has('userId')) {
+     * Updates entry revision
+     *
+     * @param Schedule $schedule     
+     * @param ScheduleEntry $entry
+     * @param string $action
+     * @param string $old
+     * @param string $new
+     * @param string $oldComment
+     * @param string $newComment
+     * @return void
+     */
+    public static function logRevision($schedule, $entry, $action, $old, $new, $oldComment, $newComment)
+    {
+        // workaround for older events where revision history is not present
+        if($schedule->entry_revisions == "")
+        {
+            $schedule->entry_revisions = json_encode(["0" => ["entry id"    => "",
+                                                              "job type"    => "",
+                                                              "action"      => "Keine frühere Änderungen vorhanden.",
+                                                              "old id"      => "",
+                                                              "old value"   => "",
+                                                              "old comment" => "",
+                                                              "new id"      => "",
+                                                              "new value"   => "",
+                                                              "user id"     => "",
+                                                              "user name"   => "",
+                                                              "new comment" => "",
+                                                              "from ip"     => "",
+                                                              "timestamp"   => (new DateTime)->format('d.m.Y H:i:s') ]
+                                                     ]);
+        }
+    
+        // decode revision history
+        $revisions = json_decode($schedule->entry_revisions, true);
 
-		$schedules = Schedule::join('club_events', 'schedules.evnt_id', '=', 'club_events.id')
-							 ->orderBy('club_events.evnt_date_start', 'DESC')
-							 ->paginate(20);
+        // decode old values
+        if(!is_null($old)){
+            $oldId = $old->id;
 
-		return View::make('scheduleViewList', compact('schedules'));
+            switch ($old->prsn_status) {
+                case "candidate":
+                    $oldStatus = "(K)";
+                    break;
+                case "member":
+                    $oldStatus = "(A)";
+                    break;
+                case "veteran":
+                    $oldStatus = "(V)";
+                    break;
+                default: 
+                    $oldStatus = "";
+            }
 
-		} else {
+            $oldName = $old->prsn_name
+                     . $oldStatus 
+                     . "(" . $old->getClub->clb_title . ")";
+        }
+        else
+        {
+            $oldId = "";
+            $oldName = "";
+        }
 
-		$schedules = Schedule::join('club_events', 'schedules.evnt_id', '=', 'club_events.id')
-							 ->where('evnt_is_private', '=' , '0')
-							 ->orderBy('club_events.evnt_date_start', 'DESC')
-							 ->paginate(20);
+        // decode new values
+        if(!is_null($new)){
+            $newId = $new->id;
+            
+            switch ($new->prsn_status) {
+                case "candidate":
+                    $newStatus = "(K)";
+                    break;
+                case "member":
+                    $newStatus = "(A)";
+                    break;
+                case "veteran":
+                    $newStatus = "(V)";
+                    break;
+                default: 
+                    $newStatus = "";
+            }
 
-		return View::make('scheduleViewList', compact('schedules'));
-		}
-	}
+            $newName = $new->prsn_name 
+                     . $newStatus
+                     . "(" . $new->getClub->clb_title . ")";
+        }
+        else
+        {
+            $newId = "";
+            $newName = "";
+        }
+        
+        // append current change
+        array_push($revisions, ["entry id"    => $entry->id,
+                                "job type"    => $entry->getJobType->jbtyp_title,
+                                "action"      => $action,
+                                "old id"      => $oldId,
+                                "old value"   => $oldName,
+                                "old comment" => $oldComment,
+                                "new id"      => $newId,
+                                "new value"   => $newName,
+                                "new comment" => $newComment,
+                                "user id"     => Session::get('userId') != NULL ? Session::get('userId') : "",
+                                "user name"   => Session::get('userId') != NULL ? Session::get('userName') . ' (' . Session::get('userClub') . ')' : "Gast",
+                                "from ip"     => Request::getClientIp(),
+                                "timestamp"   => (new DateTime)->format('d.m.Y H:i:s') ]
+                    );      
+
+        // encode and save
+        $schedule->entry_revisions = json_encode($revisions);
+                        
+        $schedule->save();
+    }
 
 
     /**
-	 * Generates the view for list of tasks - schedules with no related event.
-	 *
-	 * @return view scheduleViewList
-	 * @return Schedule[] $schedules
-	 */
-	public function showTaskList()
-	{
-		$schedules = Schedule::whereNull('evnt_id')
-							   ->orderBy('schdl_due_date', 'DESC')
-							   ->paginate(20);
-
-		return View::make('taskViewList', compact('schedules'));
-	}
-
-
-	/**
-	 * Generates the view for a specific schedule.
-	 *
-	 * Also used for a specific task (schedule without a related event).
-	 *
-	 * @param int $id
-	 * @return view scheduleViewById
-	 * @return Schedule $schedule
-	 * @return ScheduleEntry[] $entries
-	 */
-	public function showSchedule($id)
-	{
-		$schedule = Schedule::with('getClubEvent.getPlace')->findOrFail($id);
-
-		if(!Session::has('userId') AND
-			(is_null($schedule->evnt_id) OR $schedule->getClubEvent()->GetResults()->evnt_is_private==1))
-
-		{
-			Session::put('message', Config::get('messages_de.access-denied'));
-			Session::put('msgType', 'danger');
-
-			return Redirect::action('MonthController@showMonth', array('year' => date('Y'),
-                                                                   	   'month' => date('m') ) );
-		}
-
-		$entries = ScheduleEntry::where('schdl_id', '=', $id)
-								->with('getJobType',
-									   'getPerson.getClub')
-								->get();
-
-		$clubs = Club::lists('clb_title', 'id');
-
-		$persons = Cache::remember('personsForDropDown', 10 , function()
-		{
-			$timeSpan = new DateTime("now");
-			$timeSpan = $timeSpan->sub(DateInterval::createFromDateString('3 months'));
-			return Person::whereRaw("prsn_ldap_id IS NOT NULL
-									 AND (prsn_status IN ('aktiv', 'kandidat')
-									 OR updated_at>='".$timeSpan->format('Y-m-d H:i:s')."')")
-							->orderBy('clb_id')
-							->orderBy('prsn_name')
-							->get();
-		});
-
-		return View::make('scheduleViewById', compact('entries', 'schedule', 'clubs', 'persons'));
-	}
-
-
-	/**
-	 * Updates a single schedule.
-	 *
-	 * We also use this method for tasks (schedules without a related event).
-	 *
-	 * @param int $id
-     *
-	 * @return RedirectResponse
-	 */
-    public function updateSchedule($id)
+    * Create all new scheduleEntries with entered information.
+    *
+    * @return Collection scheduleEntries
+    */
+    public static function createScheduleEntries()
     {
-		$this->onUpdate($id);
+        $scheduleEntries = new Collection;
 
-		Session::put('message', Config::get('messages_de.schedule-update-ok'));
-		Session::put('msgType', 'success');
+        // parsing jobtype entries
+        for ($i=1; $i <= Input::get("counter"); $i++) {
 
-		return Redirect::back();
-	}
+            // skip empty fields
+            if (!empty(Input::get("jobType" . $i))) 
+            {       
 
+                // check if job type exists
+                $jobType = Jobtype::where('jbtyp_title', '=', Input::get("jobType" . $i))
+                                  ->where('jbtyp_time_start', '=', Input::get("timeStart" . $i))
+                                  ->where('jbtyp_time_end', '=', Input::get("timeEnd" . $i))
+                                  ->first();
+                
+                // If not found - create new job type with data provided
+                if (is_null($jobType))
+                {
+                    // TITLE
+                    $jobType = Jobtype::create(array('jbtyp_title' => Input::get("jobType" . $i)));
 
-	/**
-	 * Updates multiple schedules.
-	 */
-	public function bulkUpdateSchedule($year, $week)
-	{
-		$weekStart = date('Y-m-d', strtotime($year."W".$week.'1'));  		// Create week start date
-        $weekEnd = date('Y-m-d', strtotime($year."W".$week.'7'));       	// Create week end date
-		$updateIds = array();												// Create (empty) index of all schedules we need to update
+                    // TIME START
+                    $jobType->jbtyp_time_start = Input::get('timeStart' . $i);
 
-		// Collect IDs of event schedules shown in chosen week view
-		$events = ClubEvent::where('evnt_date_start','>=',$weekStart)
-                           ->where('evnt_date_start','<=',$weekEnd)
-                           ->get();
+                    // TIME END
+                    $jobType->jbtyp_time_end = Input::get('timeEnd' . $i);
 
-		// Add them to the index
-		foreach ($events as $event) {
-			array_push($updateIds, $event->getSchedule->id);
-		}
+                    // STATISTICAL WEIGHT
+                    $jobType->jbtyp_statistical_weight = Input::get('jbtyp_statistical_weight' . $i);
 
-		// Collect IDs of tasks shown in week view
-		$tasks = Schedule::where('schdl_show_in_week_view', '=', '1')
-					     ->where('schdl_due_date', '>=', $weekStart)
-					     ->where('schdl_due_date', '<=', $weekEnd)
-					     ->get();
+                    // NEEDS PREPARATION
+                    $jobType->jbtyp_needs_preparation = 'true';
 
-		// Add them to the index
-		foreach ($tasks as $task) {
-			array_push($updateIds, $task->id);
-		}
+                    // ARCHIVED set to "false"
+                    $jobType->jbtyp_is_archived = 'false';
 
-		// Update each of the schedules in the index
-		foreach ($updateIds as $schedule) {
-			$this->onUpdate($schedule);
-		}
+                    $jobType->save();
+                }
 
-		return Redirect::back();
-	}
+                $scheduleEntry = new ScheduleEntry;
+                $scheduleEntry->jbtyp_id = $jobType->id;
 
+                // save changes
+                $scheduleEntries->add(ScheduleController::updateScheduleEntry($scheduleEntry, $jobType->id, $i));
+            }
+        }
 
-	/**
-	* Edit or create a schedule with its entered information.
-	* If $scheduleId is null create a new schedule, otherwise the schedule specified by $scheduleId will be edit.
-	*
-	* @param int $scheduleId
-	* @return Schedule newSchedule
-	*/
-	public static function editSchedule($scheduleId)
-	{
-		$schedule = new Schedule;
-
-		if (!is_null($scheduleId)){
-			$schedule = Schedule::findOrFail($scheduleId);
-		}
-
-		// format: time; validate on filled value
-		if(!empty(Input::get('preparationTime'))) $schedule->schdl_time_preparation_start = Input::get('preparationTime');
-		else $schedule->schdl_time_preparation_start = mktime(0, 0, 0);
-
-		// format: date; validate on filled value
-		// by tasks - stay this way, by schedules will be set to null by event creation.
-		// ToDo: evtl statt null auf today setzen? M.
-		if(!empty(Input::get('dueDate')))
-		{
-			$dueDate = new DateTime(Input::get('dueDate'),
-					   new DateTimeZone(Config::get('app.timezone')));
-			$schedule->schdl_due_date = $dueDate->format('Y-m-d');
-		}
-		else $schedule->schdl_due_date = date('Y-m-d', time());
-
-		// format: password; validate on filled value
-		if (Input::get('password') == "delete"
-			AND Input::get('passwordDouble') == "delete") {
-			//delete password or leave empty
-			$schedule->schdl_password = '';
-		} elseif (!empty(Input::get('password'))
-			AND !empty(Input::get('passwordDouble'))
-			AND Input::get('password') == Input::get('passwordDouble')) {
-				$schedule->schdl_password = Hash::make(Input::get('password'));
-		}
-
-		// format: tinyInt; validate on filled value
-		if (Input::get('saveAsTemplate') == true)
-		{
-			$schedule->schdl_is_template = true;
-			$schedule->schdl_title = Input::get('templateName');
-
-		}
-		else {
-			$schedule->schdl_is_template = false;
-		}
-
-		return $schedule;
-	}
+        return $scheduleEntries;
+    }
 
 
-	/**
-	* Create all new scheduleEntries with entered information.
-	*
-	* @return Collection scheduleEntries
-	*/
-	public static function createScheduleEntries()
-	{
-		$scheduleEntries = new Collection;
-
-		// parsing jobtype entries
-		for ($i=1; $i <= Input::get("counter"); $i++) {
-
-			if (!empty(Input::get("jobType" . $i))) { 		// skip empty fields
-
-			// check if job type exists
-			$jobType = Jobtype::where('jbtyp_title', '=', Input::get("jobType" . $i))
-							  ->where('jbtyp_time_start', '=', Input::get("timeStart" . $i))
-							  ->where('jbtyp_time_end', '=', Input::get("timeEnd" . $i))
-							  ->first();
-			
-			// If not found - create new jpb type with data provided
-			if (is_null($jobType))
-			{
-				// TITLE
-				$jobType = Jobtype::create(array('jbtyp_title' => Input::get("jobType" . $i)));
-
-				// TIME START
-				$jobType->jbtyp_time_start = Input::get('timeStart' . $i);
-
-				// TIME END
-				$jobType->jbtyp_time_end = Input::get('timeEnd' . $i);
-
-				// STATISTICAL WEIGHT
-				$jobType->jbtyp_statistical_weight = Input::get('jbtyp_statistical_weight' . $i);
-
-				// NEEDS PREPARATION
-				$jobType->jbtyp_needs_preparation = 'true';
-
-				// ARCHIVED set to "false"
-				$jobType->jbtyp_is_archived = 'false';
-
-				$jobType->save();
-			}
-
-			$scheduleEntry = new ScheduleEntry;
-			$scheduleEntry->jbtyp_id = $jobType->id;
-
-			$scheduleEntries->add(ScheduleController::updateScheduleEntry($scheduleEntry, $jobType->id, $i));
-			}
-		}
-
-		return $scheduleEntries;
-	}
-
-
-	/**
-	* Edit and/or delete scheduleEntries refered to $scheduleId.
-	*
-	* @param Schedule $schedule
-	* @return Collection scheduleEntries
-	*/
-	public static function editScheduleEntries($scheduleId)
-	{
-		// get number of submitted entries
-		$numberOfSubmittedEntries = Input::get('counter');
-
-		// get old entries for this schedule
-		$scheduleEntries = ScheduleEntry::where('schdl_id', '=', $scheduleId)->get();
-
-		// prepare a collection for updated entries
-		$newEntries = new Collection;
-
-		// Counter to traverse all inputs from 1 to N
-		$counterHelper = '1';
-
-		// check for changes in each entry
-		foreach ( $scheduleEntries as $entry ) {
-
-			if ( $entry->getJobType == Input::get('jobType' + $counterHelper) ) {
-				// same job type as before - do nothing
-				// add to new collection
-				$newEntries->add(ScheduleController::updateScheduleEntry($entry, $jobtype->id, $counterHelper));
-
-			} elseif ( Input::get("jobType" . $counterHelper) == '' ) {
-				// job type empty - delete entry
-				$entry->delete();
-
-			} else {
-				// some new job type - change entry
-				$jobtype = Jobtype::firstOrCreate(array('jbtyp_title'=>Input::get("jobType" . $counterHelper)));
-				$entry->jbtyp_id = $jobtype->id;
-
-				// add to new collection
-				$newEntries->add(ScheduleController::updateScheduleEntry($entry, $jobtype->id, $counterHelper));
-			}
-
-			// move to next input
-			$counterHelper++;
-		}
-
-		// changed all old entries - have any new ones been added?
-		if ($numberOfSubmittedEntries > $counterHelper - 1) {
-			// create some new fields
-
-			for ($i= $counterHelper; $i <= $numberOfSubmittedEntries; $i++) {
-
-				// skip empty fields, create new fields if not input empty
-				if (!empty(Input::get("jobType" . $i))) {
-					$jobtype = Jobtype::firstOrCreate(array('jbtyp_title'=>Input::get("jobType" . $i)));
-
-					$newEntry = new ScheduleEntry;
-					$newEntry->jbtyp_id = $jobtype->id;
-					$newEntry->schdl_id = $scheduleId;
-
-					$newEntries->add(ScheduleController::updateScheduleEntry($newEntry, $jobtype->id, $i));
-				}
-			}
-		}
-
-		return $newEntries;
-	}
-
-	/**
-	* Update start and end time of $newScheduleEntry with input of gui elements
-	*
-	* @param ScheduleEntry $scheduleEntry
-	* @param int $jobtypeId
-	* @param int $counterValue
-	* @return ScheduleEntry updates scheduleentry
-	*/
-	private static function updateScheduleEntry($scheduleEntry, $jobtypeId, $counterValue)
-	{
-		$scheduleEntry->entry_time_start = Input::get('timeStart' . $counterValue);
-
-		$scheduleEntry->entry_time_end = Input::get('timeEnd' . $counterValue);
-
-		$scheduleEntry->entry_statistical_weight = Input::get('jbtyp_statistical_weight' . $counterValue);
-
-		return $scheduleEntry;
-	}
-
-
-
-
-	// ---------------private functions ---------------------------------------
-
-
-
-	/**
-	 * Updates schedule entries of a specific schedule.
-	 *
-	 * If a password is needed, check it's correct and throw an error to the session if it's not,
-	 * update all entries in bulk otherwise.
-	 *
-	 * @param int $id
-     *
-	 * @return RedirectResponse
-	 */
-    private function onUpdate($id)
+    /**
+    * Edit and/or delete scheduleEntries refered to $scheduleId.
+    *
+    * @param Schedule $schedule
+    * @return Collection scheduleEntries
+    */
+    public static function editScheduleEntries($scheduleId)
     {
-    	$schedule = Schedule::findOrFail($id);
-		$entries = ScheduleEntry::where('schdl_id','=',$id)->get();
+        // get number of submitted entries
+        $numberOfSubmittedEntries = Input::get('counter');
 
-		// Check if that schedule needs a password
-		if ($schedule->schdl_password !== '')
-		{
-			//get password for specific id here, similar to enty->id
-			if(!Hash::check(Input::get('password'), $schedule->schdl_password ))
-			{
-				Session::put('message', Config::get('messages_de.schedule-pw-needed'));
-				Session::put('msgType', 'danger');
-				return Redirect::back();
-			}
-		}
+        // get old entries for this schedule
+        $scheduleEntries = ScheduleEntry::where('schdl_id', '=', $scheduleId)->get();
 
-		foreach($entries as $entry)
-		{
-			// Entry was empty
-			if( !isset($entry->prsn_id) )
-			{
-				// Entry is not empty now
-				if ( !Input::get('userName' . $entry->id) == ''
-			 	  OR !Input::get('userName' . $entry->id) == Config::get('messages_de.no-entry'))
-				{
-					// Add new entry data
-					$this->onAdd($entry);
-				}
-				// Otherwise no change found - do nothing
-			}
-			// Entry was not empty
-			else
-			{
-				// Same person there?
-				if( $entry->prsn_id == Input::get('userName' . $entry->id)
-				AND Person::where('id', '=', $entry->prsn_id)->first()->prsn_ldap_id == Input::get('ldapId'. $entry->id) )
-				{
-					// Was comment updated?
-					if ( $entry->entry_user_comment != Input::get('comment' . $entry->id) )
-					{
-						$entry->entry_user_comment = Input::get('comment' . $entry->id);
-					}
-					// Otherwise no change found - do nothing
-				}
-				// New data entered
-				else
-				{
-					// Was entry deleted?
-					if ( Input::get('userName' . $entry->id) == ''
-				 	  OR Input::get('userName' . $entry->id) == Config::get('messages_de.no-entry'))
-					{
-						$this->onDelete($entry);
-					}
-					// So some new person was provided
-					else
-					{
-						// delete old data
-						$this->onDelete($entry);
-						// add new data
-						$this->onAdd($entry);
-					}
-				}
-			}
-		}
-	}
+        // prepare a collection for updated entries
+        $newEntries = new Collection;
 
+        // Counter to traverse all inputs from 1 to N
+        $counterHelper = '1';
 
-	/**
-	 * Deletes schedule entries.
-	 *
-	 * @param $entry
-	 * @return void
-	 */
-	private function onDelete($entry)
-	{
-		// Delete the dataset in table Person if it's a guest (LDAP id = NULL), but don't touch club members.
-		if ( !isset($entry->getPerson->prsn_ldap_id ) )
-		{
-			Person::destroy($entry->prsn_id);
-		}
+        // check for changes in each entry
+        foreach ( $scheduleEntries as $entry ) 
+        {
 
-		// Clear the entry
-		$entry->prsn_id = null;
-		$entry->entry_user_comment = null;
+            // same job type as before - do nothing
+            if ( $entry->getJobType == Input::get('jobType' + $counterHelper) ) 
+            {
+                // add to new collection
+                $newEntries->add(ScheduleController::updateScheduleEntry($entry, $jobtype->id, $counterHelper));
 
-		$entry->save();
-	}
+            } 
+            // job type empty - delete entry
+            elseif ( Input::get("jobType" . $counterHelper) == '' ) 
+            {
+                // log revision
+                ScheduleController::logRevision($entry->getSchedule,    // schedule object
+                                                $entry,                 // entry object
+                                                "Dienst gelöscht",      // action description
+                                                $entry->getPerson,      // old value
+                                                null,                   // new value
+                                                null,                   // old comment
+                                                null);                  // new comment
 
+                // proceed with deletion
+                $entry->delete();
 
-/**
-	 * Adds new person to the schedule entry.
-	 *
-	 * @param $entry
-	 * @return void
-	 */
-	private function onAdd($entry)
-	{
+            } 
+            // some new job type added - change entry
+            else 
+            {       
+                $jobtype = Jobtype::firstOrCreate(array('jbtyp_title'=>Input::get("jobType" . $counterHelper)));
+                $entry->jbtyp_id = $jobtype->id;
 
-		if ( Input::get('ldapId' . $entry->id) == '' )
-		{
-			// If no LDAP id provided - create new GUEST person
-			$person = new Person;
+                // log revision
+                /*
+                ScheduleController::logRevision($entry->getSchedule,    // schedule object
+                                                $entry,                 // entry object
+                                                "Dienst aktualisiert",      // action description
+                                                $entry->getPerson,      // old value
+                                                $entry->getPerson);     // new value
+                */
+                // add to new collection
+                $newEntries->add(ScheduleController::updateScheduleEntry($entry, $jobtype->id, $counterHelper));
+            }
 
-			// LDAP ID
-			$person->prsn_ldap_id = null;
+            // move to next input
+            $counterHelper++;
+        }
 
-			// NAME
-			$person->prsn_name = Input::get('userName' . $entry->id);
+        // At this point we changed all existing entries - have any new ones been added?
 
-			// PERSON STATUS = empty for guests
+        if ($numberOfSubmittedEntries > $counterHelper - 1) {
+            
+            // create some new fields
+            for ($i= $counterHelper; $i <= $numberOfSubmittedEntries; $i++) 
+            {
+                // skip empty fields, create new fields only if input not empty
+                if (!empty(Input::get("jobType" . $i))) 
+                {
+                    $jobtype = Jobtype::firstOrCreate(array('jbtyp_title'=>Input::get("jobType" . $i)));
 
-		}
-		else
-		{
-			// Find existing MEMBER person in DB
-			$person = Person::where('prsn_ldap_id', '=', Input::get('ldapId' . $entry->id) )->first();
+                    $newEntry = new ScheduleEntry;
+                    $newEntry->jbtyp_id = $jobtype->id;
+                    $newEntry->schdl_id = $scheduleId;
 
-			// If not found - create new person with data provided
-			if (is_null($person))
-			{
-				// LDAP ID - already in the DB for existing person, adding a new one for a new person
-				$person = Person::create(array('prsn_ldap_id' => Input::get('ldapId' . $entry->id)));
+                    // log revision
+                    ScheduleController::logRevision($newEntry->getSchedule, // schedule object
+                                                    $newEntry,              // entry object
+                                                    "Dienst erstellt",      // action description
+                                                    null,                   // old value
+                                                    null,                   // new value
+                                                    null,                   // old comment
+                                                    null);                  // new comment                   
 
-				// NAME - already in the DB for existing person, adding a new one for a new person
-				$person->prsn_name = Input::get('userName' . $entry->id);
+                    // add to new collection
+                    $newEntries->add(ScheduleController::updateScheduleEntry($newEntry, $jobtype->id, $i));
+                }
+            }
+        }
 
-				// PERSON STATUS
-				$person->prsn_status = Session::get('userStatus');
-			}
+        return $newEntries;
+    }
 
-			// If a person adds him/herself - update status from session to catch if it was changed in LDAP
-			if ($person->prsn_ldap_id == Session::get('userId'))
-			{
-				$person->prsn_status = Session::get('userStatus');
-				$person->prsn_name = Session::get('userName');
-			}
-
-		}
-
-		// CLUB
-
-		// If club input is empty setting clubId to '-' (clubId 1).
-		// Else - look for a match in the Clubs DB and set person->clubId = matched club's id.
-		// No match found - creating a new club with title from input.
-		if ( Input::get('club' . $entry->id) == ''
-		  OR Input::get('club' . $entry->id) == '-' )
-		{
-			$person->clb_id = '1';
-		}
-		else
-		{
-			$match = Club::firstOrCreate(array('clb_title' => Input::get('club' . $entry->id)));
-			$person->clb_id = $match->id;
-		}
-
-		// COMMENT
-
-		// Change current comment to new comment
-		$entry->entry_user_comment = Input::get('comment' . $entry->id);
+    /**
+     * Receives a timestamp, compares it to last update time of the schedule 
+     * and returns either a false boolean for "no updates since timestamp provided"
+     * or a JSON array of updated schedule entries
+     *
+     * @param int $scheduleId 
+     * @param String $timestamp
+     *
+     * @return \Illuminate\Http\Response 
+     */
+    public static function getUpdates($scheduleId, $timestamp) 
+    {
+        $updated = Schedule::where("id", "=", $id)->first()->updated_at;
+        return response()->json($updated, 200);
+    }
 
 
-		// Save changes to person and schedule entry
-		$person->updated_at = Carbon\Carbon::now();
-		$person->save();
+    /**
+    * Update start and end time of $newScheduleEntry with input of gui elements
+    *
+    * @param ScheduleEntry $scheduleEntry
+    * @param int $jobtypeId
+    * @param int $counterValue
+    * @return ScheduleEntry updates scheduleentry
+    */
+    private static function updateScheduleEntry($scheduleEntry, $jobtypeId, $counterValue)
+    {
+        $scheduleEntry->entry_time_start = Input::get('timeStart' . $counterValue);
 
-		$entry->prsn_id = $person->id;
-	    $entry->save();
-	}
+        $scheduleEntry->entry_time_end = Input::get('timeEnd' . $counterValue);
 
+        $scheduleEntry->entry_statistical_weight = Input::get('jbtyp_statistical_weight' . $counterValue);
+
+        return $scheduleEntry;
+    }
+    
 }

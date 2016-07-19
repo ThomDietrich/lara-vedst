@@ -1,0 +1,294 @@
+/*
+    Add the styles to vedst.css ?
+*/
+
+.calendarWrapper {
+    overflow: hidden;
+    background-color: white;
+    padding: 0;
+    margin: 0 15px 0 15px;
+    -webkit-box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+
+@media screen and (max-width: 978px) {
+    .calendarWrapper{
+        overflow: visible;
+        background-color: transparent;
+        -webkit-box-shadow: none;
+        box-shadow: none;
+    }
+}
+
+.height10vh {
+    height: 10vh;
+}
+
+@media screen and (max-width: 978px) {
+    .height10vh {
+        height: 0px;
+    }
+
+    .calendarRow {
+        min-height: 0px;
+    }
+}
+
+
+.weekDay {
+    text-align: left !important;
+    width: 13.714%;
+    float: left;
+    margin: 0px;
+    line-height: 10vh;
+    height: 10vh;
+    border: solid;
+    border-width: 0px 0px 0px 2px;
+    border-color: #dddddd;
+}
+
+@media screen and (max-width: 978px) {
+    .weekDay {
+        display: none;
+    }
+
+    .calendarWeek {
+        display: none;
+    }
+}
+
+.WeekMarker, .WeekMarkerRow {
+    background-color: #efefef !important;
+}
+
+
+@media screen and (max-width: 978px) {
+    .WeekMarker {
+        background-color: #a1a1a1 !important;
+    }
+
+    .WeekMarkerRow{
+        background-color: #F6F5F3 !important;
+    }
+}
+
+.thisMonth {
+    background-color: white;
+}
+
+.empty {
+    display: block;
+}
+
+@media screen and (max-width: 978px) {
+    .empty {
+        display: none;
+    }
+}
+
+.calendarRow {
+    height: auto;
+    display: block;
+    min-height: 10vh;
+    position: relative;
+    background-color: transparent;
+    overflow: hidden;
+}
+
+@media screen and (max-width: 978px) {
+    .calendarRow {
+        min-height: 0;
+        overflow: visible;
+    }
+}
+
+/*
+  Custom width of cols
+  no longer default bootstrap cols,
+  because they do not have fitting width
+*/
+.calendarWeek, .custom-md-85{
+    float: left;
+    margin: 0px;
+    line-height: 10vh;
+    min-height: 10vh;
+    border: solid;
+    border-color: #dddddd;
+}
+
+.calendarWeek {
+    text-align: center;
+    width: 4%;
+    float: left;
+    margin: 0px;
+    line-height: 10vh;
+    height: 10vh;
+    border: solid;
+    border-width: 2px 0px 0px 0px;
+    border-color: #dddddd;
+}
+
+
+.day {
+    text-align: left !important;
+    border-left-width: 0px !important;
+
+}
+
+.cell10 a:link,
+.calendarWeek a:link {
+    color: #666666;
+}
+
+.cell10 a:hover,
+.calendarWeek a:hover {
+    color: #040303;
+}
+
+.cell10 a:visited,
+.calendarWeek a:visited {
+    color: #666666;
+}
+
+
+.custom-md-85 {
+    width: 13.714%;
+    text-align: left;
+    border-width: 2px 0px 0px 2px;
+}
+
+.nobordertop{
+    border-top-width: 0px !important;
+}
+
+@media screen and (min-width: 978px) {
+    .custom-md-85{
+        margin-bottom: -99999px;
+        padding-bottom: 99999px;
+    }
+}
+
+@media screen and (max-width: 978px) {
+    .custom-md-85, .calendarWeek {
+        width: 100%;
+        border-bottom: solid;
+        border-width: 3px;
+        border-color: #F6F5F3;
+        border-left-width: 0px;
+        border-right-width: 0px;
+    }
+
+    .custom-md-85{
+        height:auto;
+    }
+
+    .custom-md-85:empty, .calendarWeek:empty {
+        display: none;
+        height: 0px;
+    }
+
+    .calendarWeek {
+        margin-top: 10vh !important;
+        background-color: #cccccc;
+        border-radius: 30px 30px 0 0;
+        font-weight: bold;
+        display: block;
+    }
+
+    .calendarWeek a:link {
+        color: white;
+    }
+
+    .calendarWeek a:hover {
+        color: black;
+    }
+
+    .calendarWeek a:visited {
+        color: white;
+    }
+}
+
+/*
+    space for number and space for event
+*/
+/*
+    cell10 = a cell width 10%. Used to encapsulate the
+    day number on the left side of the month cell
+*/
+.cell10 {
+    width: 10%;
+    float: left;
+    position: relative;
+    margin: 0px;
+    text-align: center;
+    line-height: 10vh;
+    height: 10vh;
+}
+
+/*
+    cell90 = a cell with 90% width. Used to encapsulate the
+    event (or white space) of the month cell
+*/
+.cell90 {
+    width: 90%;
+    float: right;
+    position: relative;
+    padding-right: 5%;
+    padding-left: 5%;
+}
+
+@media screen and (max-width: 978px) {
+    .cell90 {
+        padding-right: 10%;
+        padding-left: 0%;
+    }
+}
+
+@media screen and (max-width: 978px) {
+    .mobile72Width {
+        width: 72%;
+    }
+}
+
+.onlyOnMobile{
+    display: none;
+}
+
+@media screen and (max-width: 978px) {
+    .onlyOnMobile{
+        display: inline;
+    }
+}
+
+
+/* Mind the extra big screens! */
+@media screen and (min-height: 1050px) {
+    .weekDay{
+        height:5vh;
+        line-height: 5vh;
+    }
+
+    .calendarWeek{
+        line-height: 5vh;
+        height: 5vh;
+        min-height: 5vh;
+    }
+
+    .cell10{
+        line-height:5vh;
+        height:5vh;
+    }
+
+    .calendarRow{
+        min-height: 5vh;
+        height: inherit;
+    }
+
+    .height10vh{
+        min-height: 5vh;
+    }
+
+    .noheightmobile{
+        height:5vh;
+    }
+}

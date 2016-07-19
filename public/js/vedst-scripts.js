@@ -1,12 +1,62 @@
+// Non-sticky footer at the bottom of the screen
+$(document).ready(function() {
+
+    var docHeight = $(window).height();
+    var footerHeight = $('#footer').height();
+    var footerTop = $('#footer').position().top + footerHeight;
+
+    if (footerTop < docHeight) {
+        $('#footer').css('margin-top', (docHeight - footerTop) + 'px');
+    }
+});
+
+$(document).ready(function() {
+    // if set, internal events will trigger selection of all clubs
+    // if user sets the club manually, we want to keep his selection
+    var autoSelectAllClubs = true;
+    $("#filter").find("input[type=checkbox]").click(function() {
+        autoSelectAllClubs = false;
+    });
+
+    // values of events that should trigger the selection of all clubs
+    var internalEventValues = [
+        '1', // Info
+        '4', // Internal event
+        '5', // private party
+        '6', // cleaning
+        '9'  // other
+    ];
+    $("[name='evnt_type']").click(function(){
+        if (autoSelectAllClubs) {
+            if (internalEventValues.indexOf($(this).attr('value')) !== -1) {
+                $("#filter").find("input[type=checkbox]").attr('checked', true);
+            }
+        }
+    });
+});
+
+// On event create/edit - check that at leaast one checkbox is checked, otherwise event won't be shown at all.
+$("#button-edit-submit").click(function(){
+    if($('#filter-checkboxes').find('input[type=checkbox]:checked').length == 0)
+    {
+        alert('Den Filter vergessen! Bitte setze mindestens eine Sektion, der diese Veranstaltung/Aufgabe gezeigt werden soll.');
+        return false;
+    }
+});
+$("#button-create-submit").click(function(){
+    if($('#filter-checkboxes').find('input[type=checkbox]:checked').length == 0)
+    {
+        alert('Den Filter vergessen! Bitte setze mindestens eine Sektion, der diese Veranstaltung/Aufgabe gezeigt werden soll.');
+        return false;
+    }
+});
+
 // Automatically close messages after 4 seconds (4000 milliseconds). M.
 window.setTimeout(function() {
     $(".message").fadeTo(1000, 0).slideUp(500, function(){
         $(this).alert('close'); 
     });
 }, 4000);
-
-
-
 
 
 // Show/hide more button for infos
@@ -22,8 +72,8 @@ $(function(){
 $(function(){
     $('.moreless-less-info').click(function(e) {
         $(this).parent().children('.more-info').toggleClass('moreshow-info');
-        $(this).parent().children('.more-info').css('height','125'); 
-        $(this).parent().children('.more-info').height(125);  
+        $(this).parent().children('.more-info').css('height','100'); 
+        $(this).parent().children('.more-info').height(100);  
         $(this).parent().children('.moreless-less-info').hide();
         $(this).parent().children('.moreless-more-info').show();  
     });
@@ -32,8 +82,8 @@ $(function(){
 $(function(){
     $('.moreless-more-info').hide();
     $('.moreless-less-info').hide();
-    if ($('.more-info').height() > 125) {   
-        $('.more-info').height(125);        
+    if ($('.more-info').height() > 100) {   
+        $('.more-info').height(100);        
         $('.moreless-more-info').show();
     };
 });
@@ -50,8 +100,8 @@ $(function(){
 $(function(){
     $('.moreless-less-details').click(function(e) {
         $(this).parent().children('.more-details').toggleClass('moreshow-details');
-        $(this).parent().children('.more-details').css('height','125'); 
-        $(this).parent().children('.more-details').height(125);  
+        $(this).parent().children('.more-details').css('height','100'); 
+        $(this).parent().children('.more-details').height(100);  
         $(this).parent().children('.moreless-less-details').hide();
         $(this).parent().children('.moreless-more-details').show();  
     });
@@ -60,8 +110,8 @@ $(function(){
 $(function(){
     $('.moreless-more-details').hide();
     $('.moreless-less-details').hide();
-    if ($('.more-details').height() > 125) {   
-        $('.more-details').height(125);        
+    if ($('.more-details').height() > 100) {   
+        $('.more-details').height(100);        
         $('.moreless-more-details').show();
     };
 
@@ -69,16 +119,35 @@ $(function(){
 
 
 
-
-
 // Show/hide comments
 $(function(){
 	$('.showhide').click(function(e) {
-		$(this).parent().parent().next().children().children('.hide').toggleClass('show');
+		$(this).parent().next('.hide').toggleClass('show');
+        $('.isotope').isotope('layout') 
 	});
 });
 
 
+// Show/hide change history
+$(function(){
+    $('#show-hide-history').click(function(e) {
+        e.preventDefault();
+        if ($('#change-history').hasClass("hide")) 
+        {
+            // change state, change button
+            $('#change-history').removeClass('hide'); 
+            $('#arrow-icon').removeClass('fa-caret-right');
+            $('#arrow-icon').addClass('fa-sort-desc');
+        }
+        else
+        {
+            // change state, change button
+            $('#change-history').addClass('hide');
+            $('#arrow-icon').addClass('fa-caret-right');
+            $('#arrow-icon').removeClass('fa-sort-desc');
+        };        
+    });
+});
 
 
 
@@ -162,39 +231,6 @@ $(document).ready(function() {
 
 // Enable Tooltips
 $(function () { $("[data-toggle='tooltip']").tooltip(); });     
-
-
-
-
-
-// TESTING AJAX
-
-          $('#input-test').focusout(function() {
-
-            // start a spinner in the username field
-            // until I get a reponse from the server
-            $('#username-addon').html('<i class="fa fa-spinner fa-spin"></i>');
-
-            var username = $('#input-test').val();
-
-            $.post("/vedst-dev/ajax/posted", { 'input-test': username }, function(data) {
-              
-              if(data == "match")
-              {
-                $('#username-addon').html('<i class="fa fa-check"></i>');
-                $('#username-group').removeClass('has-error');
-                $('#username-group').addClass('has-success');
-
-              } else {
-
-                $('#username-addon').html('<i class="fa fa-ban"></i>');
-                $('#username-group').addClass('has-error');
-                $('#username-group').removeClass('has-');
-              }
-
-            });
-
-          });
 
 
 
@@ -401,18 +437,17 @@ $(document).ready(function() {
         {
             if (localStorage.filter == "nur bc-Club") 
             {
+                $('.filter').hide();
                 $('.bc-Club').show(); 
-                $('.bc-Café').hide(); 
             }
             else if (localStorage.filter == "nur bc-Café")
             {
-                $('.bc-Club').hide(); 
+                $('.filter').hide();
                 $('.bc-Café').show(); 
             }
             else if (localStorage.filter == "Alle Sektionen") 
             {
-                $('.bc-Club').show(); 
-                $('.bc-Café').show(); 
+                $('.filter').show();  
             }
         }
 
@@ -422,18 +457,17 @@ $(document).ready(function() {
             var filterValue = $( this ).attr('data-filter');
             if (filterValue.match("bc-Club")) 
             {
+                $('.filter').hide();
                 $('.bc-Club').show(); 
-                $('.bc-Café').hide(); 
             }
             else if (filterValue.match("bc-Café"))
             {
-                $('.bc-Club').hide(); 
+                $('.filter').hide(); 
                 $('.bc-Café').show(); 
             }
             else if (filterValue.match("\\*")) 
             {
-                $('.bc-Club').show(); 
-                $('.bc-Café').show(); 
+                $('.filter').show(); 
             }
             
         });
@@ -449,3 +483,440 @@ $(function(){
         $('.isotope').isotope('layout')       
     });
 });
+
+
+//////////
+// AJAX //
+//////////
+
+// Update schedule entries
+jQuery( document ).ready( function( $ ) {
+
+
+/////////////////////////////
+// AUTOCOMPELETE USERNAMES //
+/////////////////////////////
+
+    // open username dropdown on input selection and show only "I'll do it!" button at the beginning
+    $( '.scheduleEntry' ).find('input').on( 'focus', function() {
+        // remove all other dropdowns
+        $(document).find('.dropdown-username').hide();
+        // open dropdown for current input
+        $(document.activeElement).parent().children('.dropdown-username').show();
+    } );
+
+    // hide all dropdowns on ESC keypress
+    $(document).keyup(function(e) {
+      if (e.keyCode === 27) {
+        $(document).find('.dropdown-username').hide();
+      }
+    });
+
+    $( '.scheduleEntry' ).find("input[id^='userName']").on( 'input', function() {
+        // Show save icon on form change
+        $(this).parents('.scheduleEntry').find('[name^=btn-submit-change]').removeClass('hide');
+        $(this).parents('.scheduleEntry').find("[name^=status-icon]").addClass('hide');
+
+        // do all the work here after AJAX response is received
+        function ajaxCallBackUsernames(response) { 
+
+            // clear array from previous results, but leave first element with current user's data
+            $(document.activeElement).parent().children('.dropdown-username').contents().filter(function () {
+                return this.id != "yourself";
+            }).remove();
+
+            // format data received
+            response.forEach(function(data) {
+
+                // now we convert our data to meaningful text - could have done it on server side, but this is easier for now:
+                // convert club_id to text
+                if (data.clb_id == 2) { data.clb_id = "bc-Club" }
+                if (data.clb_id == 3) { data.clb_id = "bc-Café" }
+
+                // convert person_status to text
+                if ( data.prsn_status == 'candidate' ) { data.prsn_status = " (K)" }
+                else if ( data.prsn_status == 'veteran' ) { data.prsn_status = " (V)" }
+                else if ( data.prsn_status == 'resigned' ) { data.prsn_status = " (ex)" }
+                else { data.prsn_status = "" } 
+
+                // add found persons to the array
+                $(document.activeElement).parent().children('.dropdown-username').append(
+                    '<li><a href="javascript:void(0);">' 
+                    + '<span id="currentLdapId" hidden>' + data.prsn_ldap_id + '</span>'
+                    + '<span id="currentName">' + data.prsn_name + '</span>'
+                    + data.prsn_status
+                    + '(<span id="currentClub">' + data.clb_id + '</span>)'
+                    + '</a></li>');
+            });  
+
+            // process clicks inside the dropdown
+            $(document.activeElement).parent().children('.dropdown-username').children('li').click(function(e){
+                // ignore "i'll do it myself" button (handeled in view)
+                if ( this.id == "yourself") return false;
+
+                // gather the data for debugging
+                var currentLdapId = $(this).find('#currentLdapId').html();
+                var currentName = $(this).find('#currentName').html();
+                var currentClub = $(this).find('#currentClub').html();
+                var currentEntryId = $(this).closest(".scheduleEntry").attr("id");
+
+                // update fields
+                $("input[id=userName" + currentEntryId + "]").val(currentName);
+                $("input[id=ldapId"   + currentEntryId + "]").val(currentLdapId);
+                $("input[id=club"     + currentEntryId + "]").val(currentClub);
+
+                // send to server
+                // need to go via click instead of submit because otherwise ajax:beforesend, complete and so on won't be triggered
+                $("#btn-submit-changes"+currentEntryId).click();
+
+            });
+
+            // reveal newly created dropdown
+            $(document.activeElement).parent().children('.dropdown-username').show();
+
+        }
+
+        // short delay to prevents double sending
+        $(this).delay('250');
+
+        // Request autocompleted names
+        $.ajax({  
+            type: $( this ).prop( 'method' ),  
+
+            url: "/person/" + $(this).val(),  
+
+            data: {
+                    // We use Laravel tokens to prevent CSRF attacks - need to pass the token with each requst
+                    "_token": $(this).find( 'input[name=_token]' ).val(),
+
+                    // Most browsers are restricted to only "get" and "post" methods, so we spoof the method in the data
+                    "_method": "get"
+            },  
+
+            dataType: 'json',
+
+            success: function(response){
+                // external function handles the response
+                ajaxCallBackUsernames(response);
+            },
+        });
+    } );
+
+/////////////////////////
+// AUTOCOMPELETE CLUBS //
+/////////////////////////   
+
+    // open club dropdown on input selection
+    $( '.scheduleEntry' ).find('input').on( 'focus', function() {
+        // remove all other dropdowns
+        $(document).find('.dropdown-club').hide();
+        // open dropdown for current input
+        $(document.activeElement).parent().parent().children('.dropdown-club').show();
+    } );
+
+    // hide all dropdowns on ESC keypress
+    $(document).keyup(function(e) {
+      if (e.keyCode === 27) {
+        $(document).find('.dropdown-club').hide();
+      }
+    });
+
+    $( '.scheduleEntry' ).find("input[id^='club']").on( 'input', function() {
+        // Show save icon on form change
+        $(this).parents('.scheduleEntry').find('[name^=btn-submit-change]').removeClass('hide');
+        $(this).parents('.scheduleEntry').find("[name^=status-icon]").addClass('hide');
+
+        // do all the work here after AJAX response is received
+        function ajaxCallBackClubs(response) { 
+
+            // clear array from previous results, but leave first element with current user's data
+            $(document.activeElement).parent().parent().children('.dropdown-club').contents().remove();
+
+            // format data received
+            response.forEach(function(data) {
+
+                // add found clubs to the array$(document.activeElement).parent().children('.dropdown-club')
+                $(document.activeElement).parent().parent().children('.dropdown-club').append(
+                    '<li><a href="javascript:void(0);">' 
+                    + '<span id="clubTitle">' + data.clb_title + '</span>'
+                    + '</a></li>');
+            });  
+
+            // process clicks inside the dropdown
+            $(document.activeElement).parent().parent().children('.dropdown-club').children('li').click(function(e){
+
+                var clubTitle = $(this).find('#clubTitle').html();
+                var currentEntryId = $(this).closest(".scheduleEntry").attr("id");
+
+                // update fields
+                $("input[id=club"     + currentEntryId + "]").val(clubTitle);
+
+                // send to server
+                // need to go via click instead of submit because otherwise ajax:beforesend, complete and so on won't be triggered
+                $("#btn-submit-changes"+currentEntryId).click();
+
+            });
+
+            // reveal newly created dropdown
+            $(document.activeElement).parent().parent().children('.dropdown-club').show();
+
+        }
+
+        // short delay to prevents double sending
+        $(this).delay('250');
+
+        // Request autocompleted names
+        $.ajax({  
+            type: $( this ).prop( 'method' ),  
+
+            url: "/club/" + $(this).val(),  
+
+            data: {
+                    // We use Laravel tokens to prevent CSRF attacks - need to pass the token with each requst
+                    "_token": $(this).find( 'input[name=_token]' ).val(),
+
+                    // Most browsers are restricted to only "get" and "post" methods, so we spoof the method in the data
+                    "_method": "get"
+            },  
+
+            dataType: 'json',
+
+            success: function(response){
+                // external function handles the response
+                ajaxCallBackClubs(response);
+            },
+        });
+    } );
+
+
+    // Submit changes
+    $( '.scheduleEntry' ).on( 'submit', function() {
+
+        // For passworded schedules: check if a password field exists and is not empty
+        // We will check correctness on the server side
+        if ( $(this).parentsUntil( $(this), '.panel-warning').find("[name^=password]").length
+          && !$(this).parentsUntil( $(this), '.panel-warning').find("[name^=password]").val() ) 
+        {
+            var password = window.prompt( 'Bitte noch das Passwort für diesen Dienstplan eingeben:' );      
+        } else {
+            var password = $(this).parentsUntil( $(this), '.panel-warning').find("[name^=password]").val();
+        }
+
+        $.ajax({  
+            type: $( this ).prop( 'method' ),  
+
+            url: $( this ).prop( 'action' ),  
+
+            data: JSON.stringify({
+                    // We use Laravel tokens to prevent CSRF attacks - need to pass the token with each requst
+                    "_token":       $(this).find( 'input[name=_token]' ).val(),
+
+                    // Actual data being sent below
+                    "entryId":      $(this).closest("form").attr("id"), 
+                    "userName":     $(this).find("[name^=userName]").val(),
+                    "ldapId":       $(this).find("[name^=ldapId]").val(),
+                    "timestamp":    $(this).find("[name^=timestamp]").val(),
+                    "userClub":     $(this).find("[name^=club]").val(),
+                    "userComment":  $(this).find("[name^=comment]").val(),
+                    "password":     password, 
+
+                    // Most browsers are restricted to only "get" and "post" methods, so we spoof the method in the data
+                    "_method": "put"
+                }),  
+
+            dataType: 'json',
+
+            contentType: 'application/json',
+            
+            beforeSend: function() {
+                // console.log("beforesend");
+                
+                // hide dropdowns because they aren't no longer needed
+                $(document).find('.dropdown-username').hide();
+                $(document).find('.dropdown-club').hide();
+
+                // HOTFIX: resolve current schedule entry ID via looking for an active save button
+                var currentId = $('button.btn-primary').parents('form').attr('id');
+
+                // Remove save icon and show a spinner in the username status while we are waiting for a server response
+                $('#btn-submit-changes' + currentId).addClass('hide').parent().children('i').removeClass().addClass("fa fa-spinner fa-spin").attr("id", "spinner").attr("data-original-title", "In Arbeit...").css("color", "darkgrey");                
+            },
+            
+            complete: function() {
+                // console.log('complete');
+            },
+
+            success: function(data) {  
+                // console.log("success");
+                
+                // COMMENT:
+                // we update to server response instead of just saving user input
+                // for the case when an entry has been updated recently by other user, 
+                // but current user hasn't received a push-update from the server yet.
+                //
+                // This should later be substituted for "update highlighting", e.g.:
+                // green  = "your data was saved successfully", 
+                // red    = "server error, entry not saved (try again)", 
+                // yellow = "other user updated before you, here's the new data"
+
+                // Update the fields according to server response
+                $("input[id=userName" + data["entryId"] + "]").val(data["userName"]).attr("placeholder", "=FREI=");
+                $("input[id=ldapId"   + data["entryId"] + "]").val(data["ldapId"]);
+                $("input[id=timestamp"+ data["entryId"] + "]").val(data["timestamp"]);
+                $("input[id=club"     + data["entryId"] + "]").val(data["userClub"]).attr("placeholder", "-");
+                $("input[id=comment"  + data["entryId"] + "]").val(data["userComment"]).attr("placeholder", "Kommentar hier hinzufügen");
+
+                // Switch comment icon in week view
+                if ( $("input[id=comment"  + data["entryId"] + "]").val() == "" ) {
+                    $("input[id=comment"  + data["entryId"] + "]").parent().children().children("button").children("i").removeClass().addClass("fa fa-comment-o");
+                } else {
+                    $("input[id=comment"  + data["entryId"] + "]").parent().children().children("button").children("i").removeClass().addClass("fa fa-comment");
+                };
+
+                // Switch comment in event view
+                if ( $("input[id=comment"  + data["entryId"] + "]").val() == "" ) {
+                    $("input[id=comment"  + data["entryId"] + "]").parent().children("span").children("i").removeClass().addClass("fa fa-comment-o");
+                } else {
+                    $("input[id=comment"  + data["entryId"] + "]").parent().children("span").children("i").removeClass().addClass("fa fa-comment");
+                };
+
+                // UPDATE STATUS ICON
+                // switch to normal user status icon and clear "spinner"-markup
+                // we receive this parameters: e.g. ["status"=>"fa fa-adjust", "style"=>"color:yellowgreen;", "title"=>"Kandidat"] 
+                $("#spinner").attr("style", data["userStatus"]["style"]);
+                $("#spinner").attr("data-original-title", data["userStatus"]["title"]);
+                $("#spinner").removeClass().addClass(data["userStatus"]["status"]).removeAttr("id");               
+            },
+
+            error: function (xhr, ajaxOptions, thrownError) {
+                alert(JSON.stringify(xhr.responseJSON));
+                // Hide spinner after response received
+                // We make changes on success anyway, so the following state is only achieved 
+                // when a response from server was received, but errors occured - so let's inform the user
+                $("#spinner").removeClass().addClass("fa fa-exclamation-triangle").css("color", "red").attr("data-original-title", "Fehler: Änderungen nicht gespeichert!");
+              }
+
+
+        });
+
+        // Prevent the form from actually submitting in browser
+        return false; 
+
+    });
+
+    /*
+    $( '.survey' ).on( 'submit', function() {
+
+        // For passworded surveys: check if a password field exists and is not empty
+        // We will check correctness on the server side
+        if ($(this).parentsUntil($(this), '.panel-warning').find("[name^=password]").length
+            && !$(this).parentsUntil($(this), '.panel-warning').find("[name^=password]").val()) {
+            var password = window.prompt('Bitte noch das Passwort für diese Umfrage eingeben:');
+            $(this).parentsUntil($(this), '.panel-warning').find("[name^=password]").val(password);
+        } else {
+            var password = $(this).parentsUntil($(this), '.panel-warning').find("[name^=password]").val();
+        }
+        //return false; ?
+    });
+    */
+
+    // Detect entry name change and remove LDAP id from the previous entry
+    $('.scheduleEntry').find("[name^=userName]").on('input propertychange paste', function() {
+        $(this).parent().find("[name^=ldapId]").val("");
+    });
+ 
+});
+
+
+
+////////////////////////////////////
+// Clever RESTful Resource Delete //
+////////////////////////////////////
+
+/*
+Taken from: https://gist.github.com/soufianeEL/3f8483f0f3dc9e3ec5d9
+Modified by Ferri Sutanto
+- use promise for verifyConfirm
+Examples : 
+<a href="posts/2" data-method="delete" data-token="{{csrf_token()}}"> 
+- Or, request confirmation in the process -
+<a href="posts/2" data-method="delete" data-token="{{csrf_token()}}" data-confirm="Are you sure?">
+*/
+
+(function(window, $, undefined) {
+
+    var Laravel = {
+        initialize: function() {
+            this.methodLinks = $('a[data-method]');
+            this.token = $('a[data-token]');
+            this.registerEvents();
+        },
+
+        registerEvents: function() {
+            this.methodLinks.on('click', this.handleMethod);
+        },
+
+        handleMethod: function(e) {
+            e.preventDefault()
+
+            var link = $(this)
+            var httpMethod = link.data('method').toUpperCase()
+            var form
+
+            // If the data-method attribute is not PUT or DELETE,
+            // then we don't know what to do. Just ignore.
+            if ($.inArray(httpMethod, ['PUT', 'DELETE']) === -1) {
+                return false
+            }
+
+            Laravel
+                .verifyConfirm(link)
+                .done(function () {
+                    form = Laravel.createForm(link)
+                    form.submit()
+                })
+        },
+
+        verifyConfirm: function(link) {
+            var confirm = new $.Deferred()
+
+            var userResponse = window.confirm(link.data('confirm'))
+
+            if (userResponse) {
+                confirm.resolve(link)
+            } else {
+                confirm.reject(link)
+            }
+
+            return confirm.promise()
+        },
+
+        createForm: function(link) {
+            var form =
+                $('<form>', {
+                    'method': 'POST',
+                    'action': link.attr('href')
+                });
+
+            var token =
+                $('<input>', {
+                    'type': 'hidden',
+                    'name': '_token',
+                    'value': link.data('token')
+                });
+
+            var hiddenInput =
+                $('<input>', {
+                    'name': '_method',
+                    'type': 'hidden',
+                    'value': link.data('method')
+                });
+
+            return form.append(token, hiddenInput)
+                .appendTo('body');
+        }
+    };
+
+    Laravel.initialize();
+
+})(window, jQuery);

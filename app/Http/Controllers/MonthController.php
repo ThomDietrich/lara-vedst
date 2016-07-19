@@ -1,27 +1,34 @@
 <?php
 
-/* 
---------------------------------------------------------------------------
-    Copyright (C) 2015  Maxim Drachinskiy
-                        Silvi Kaltwasser
-                        Nadine Sobisch
-                        Robert Utnehmer
+namespace Lara\Http\Controllers;
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+use Lara\Http\Requests;
+use Lara\Http\Controllers\Controller;
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details (app/LICENSE.txt).
+use Lara\Survey;
+use Redirect;
+use View; 
 
-    Any questions? Mailto: maxim.drachinskiy@bc-studentenclub.de
---------------------------------------------------------------------------
-*/
+use Lara\ClubEvent;
+use Lara\Schedule;
+
 
 class MonthController extends Controller {
+
+    /** 
+     * Fills missing parameters: if no month specified use current year and month.
+     *  
+     * @return int $month
+     * @return int $year
+	 * @return RedirectResponse
+     */        
+    public function currentMonth()
+    {
+        return Redirect::action( 'MonthController@showMonth', ['year' => date("Y"), 
+        													   'month' => date('m')] );                                                               
+    }
+     
+
 	/**
 	* Generate the view of the calender for given month and given year
 	* with events in this period.
@@ -51,20 +58,6 @@ class MonthController extends Controller {
 		
 		// Int for the lst day
 		$endDay = date("N", mktime(0,0,0,date("n",$usedTime),$daysOfMonth,date("Y",$usedTime))); 
-		
-		// Array for german translation of the month names
-		$monthName = array( 1	=> Config::get('messages_de.month-name-jan'),  
-			                2	=> Config::get('messages_de.month-name-feb'),
-			                3	=> Config::get('messages_de.month-name-mar'),
-			                4	=> Config::get('messages_de.month-name-apr'),
-			                5	=> Config::get('messages_de.month-name-may'),
-			                6	=> Config::get('messages_de.month-name-jun'),
-			                7	=> Config::get('messages_de.month-name-jul'),
-			                8	=> Config::get('messages_de.month-name-aug'),
-			                9	=> Config::get('messages_de.month-name-sep'),
-			                10	=> Config::get('messages_de.month-name-oct'),
-			                11	=> Config::get('messages_de.month-name-nov'),
-			                12	=> Config::get('messages_de.month-name-dec'));
 
 		$date=array(  'year' => $year, 
 		              'month' => $month,
@@ -73,7 +66,7 @@ class MonthController extends Controller {
 					  'endDay'=>$endDay,
 					  'startStamp'=>$startStamp,
 					  'usedTime'=>$usedTime,
-					  'monthName'=>$monthName[date("n", $usedTime)]);
+					  'monthName'=>date("F", $usedTime) );
 
 		$events = ClubEvent::where('evnt_date_start','>=',$monthStart)
 						   ->where('evnt_date_start','<=',$monthEnd)
@@ -81,13 +74,12 @@ class MonthController extends Controller {
 						   ->orderBy('evnt_time_start')
 						   ->get();
 
-		$tasks = Schedule::where('schdl_show_in_week_view', '=', '1')
-			     ->where('schdl_due_date', '>=', $monthStart) 				
-			     ->where('schdl_due_date', '<=', $monthEnd)
-			     ->get();
+		$surveys = Survey::where('deadline','>=',$monthStart)
+							->where('deadline','<=',$monthEnd)
+							->orderBy('deadline')
+							->get();
 
-		return View::make('monthView', compact('events', 'tasks','date'));
+		return View::make('monthView', compact('events', 'date', 'surveys'));
 	}
-
 }
 
